@@ -1,0 +1,86 @@
+# Layer 1 — GangScheduling.
+# 4-pod gang; all 4 bind together (atomic Permit) or none binds.
+# Watch the pod events: pods park at Permit and are allowed in one shot
+# once minCount = 4 pods show ScheduledPodsCount() >= minCount.
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: Workload
+metadata:
+  name: gang-demo
+  namespace: ws-demo
+spec:
+  podGroupTemplates:
+  - name: workers
+    schedulingPolicy:
+      gang:
+        minCount: 4
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: gang-demo-workers
+  namespace: ws-demo
+spec:
+  podGroupTemplateRef:
+    workload:
+      workloadName: gang-demo
+      podGroupTemplateName: workers
+  schedulingPolicy:
+    gang:
+      minCount: 4
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gang-worker-1
+  namespace: ws-demo
+  labels: { app: gang-demo }
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gang-worker-2
+  namespace: ws-demo
+  labels: { app: gang-demo }
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gang-worker-3
+  namespace: ws-demo
+  labels: { app: gang-demo }
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gang-worker-4
+  namespace: ws-demo
+  labels: { app: gang-demo }
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }

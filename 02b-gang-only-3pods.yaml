@@ -1,0 +1,79 @@
+# Layer 1, failure-mode variant.
+# Same Workload as 02-gang-4pods.yaml but we only create 3 of the 4 pods.
+# Expected observations:
+#   - Pods sit in the scheduler's unschedulable queue with reason
+#     "waiting for minCount pods from a gang to appear in scheduling queue"
+#     (PreEnqueue returns UnschedulableAndUnresolvable because
+#     podGroupState.AllPodsCount() < minCount).
+#   - No pod ever reaches Permit, because PreEnqueue never lets them through.
+#   - Events include: type=Warning, reason=FailedScheduling from the
+#     scheduler on each pod.
+#
+# Clean up scenario 02 first (kubectl delete -f 02-gang-4pods.yaml).
+# Adding a 4th pod with spec.schedulingGroup.podGroupName: gang-demo-workers
+# unblocks the gang (watch it happen in real time).
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: Workload
+metadata:
+  name: gang-demo
+  namespace: ws-demo
+spec:
+  podGroupTemplates:
+  - name: workers
+    schedulingPolicy:
+      gang:
+        minCount: 4
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: gang-demo-workers
+  namespace: ws-demo
+spec:
+  podGroupTemplateRef:
+    workload:
+      workloadName: gang-demo
+      podGroupTemplateName: workers
+  schedulingPolicy:
+    gang:
+      minCount: 4
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: only-worker-1
+  namespace: ws-demo
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: only-worker-2
+  namespace: ws-demo
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: only-worker-3
+  namespace: ws-demo
+spec:
+  schedulingGroup:
+    podGroupName: gang-demo-workers
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources: { requests: { cpu: 200m, memory: 64Mi } }

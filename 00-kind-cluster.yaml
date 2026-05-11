@@ -1,0 +1,31 @@
+# kind cluster with Workload-API gates enabled on every component that needs
+# them. Requires a node image for k8s v1.36 (kindest/node:v1.36.0).
+#
+# kind's top-level featureGates and runtimeConfig propagate to all components
+# (apiserver, scheduler, controller-manager, kubelet) automatically, so
+# kubeadmConfigPatches are not needed for feature gates.
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: workload-aware
+featureGates:
+  # Baseline — Workload + PodGroup API (apiserver + scheduler).
+  GenericWorkload: true
+  # GangScheduling plugin in kube-scheduler.
+  GangScheduling: true
+  # Job controller creates Workload + PodGroup automatically (apiserver + controller-manager).
+  WorkloadWithJob: true
+  # Uncomment below for additional scenarios:
+  # DRAWorkloadResourceClaims: true        # Layer 3 — PodGroup-scoped ResourceClaims
+  # WorkloadAwarePreemption: true          # Layer 4 — gang-level preemption (requires GangScheduling)
+  # TopologyAwareWorkloadScheduling: true  # Layer 5 — topology constraints on a PodGroup
+
+runtimeConfig:
+  # Enable the v1alpha2 API group on kube-apiserver.
+  scheduling.k8s.io/v1alpha2: "true"
+
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+- role: worker
+- role: worker

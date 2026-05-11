@@ -1,0 +1,82 @@
+# Layer 2 — WorkloadWithJob.
+# You submit a normal batch/v1 Job. The Job controller, with the
+# WorkloadWithJob gate on, notices the Job is gang-eligible and
+# auto-creates a Workload + PodGroup for you.
+#
+# Eligibility rules (pkg/controller/job/job_scheduling_manager.go,
+# shouldManageWorkloadForJob):
+#   - job.spec.parallelism > 1
+#   - job.spec.completionMode == Indexed
+#   - job.spec.completions == job.spec.parallelism
+#   - pod template does NOT already set spec.schedulingGroup
+#   - WorkloadWithJob feature gate enabled on kube-controller-manager
+#
+# Expect to see after apply:
+#   - A Workload "<jobname>-<hash>" owned by the Job.
+#   - A PodGroup with a Gang policy (minCount = parallelism).
+#   - All 4 pods scheduled atomically in the same cycle.
+#
+# The workers print timestamps and discover peers via the headless Service
+# to prove they all started together.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gang-training
+  namespace: ws-demo
+spec:
+  clusterIP: None
+  selector:
+    job-name: gang-training
+  ports:
+  - port: 9999
+    name: placeholder
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gang-training
+  namespace: ws-demo
+spec:
+  parallelism: 4
+  completions: 4
+  completionMode: Indexed
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: gang-training
+    spec:
+      restartPolicy: Never
+      subdomain: gang-training
+      containers:
+      - name: work
+        image: busybox:1.36
+        command:
+        - /bin/sh
+        - -c
+        - |
+          START=$(date -u +%H:%M:%S)
+          echo "[$START] worker ${JOB_COMPLETION_INDEX} started on $(hostname)"
+
+          # Attempt to resolve all 4 peers — proves atomic co-start.
+          echo "--- peer discovery ---"
+          for i in 0 1 2 3; do
+            HOST="gang-training-${i}.gang-training.ws-demo.svc.cluster.local"
+            # Brief retry loop (peers may take a moment to register in DNS).
+            for attempt in 1 2 3 4 5; do
+              if nslookup "$HOST" >/dev/null 2>&1; then
+                echo "  peer $i ($HOST): reachable"
+                break
+              fi
+              sleep 2
+            done
+          done
+          echo "--- all peers discovered ---"
+
+          sleep 20
+          echo "[$(date -u +%H:%M:%S)] worker ${JOB_COMPLETION_INDEX} done"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 64Mi

@@ -1,0 +1,68 @@
+# Layer 0 — GenericWorkload only.
+# Demonstrates the API plumbing without any gang semantics:
+#   - A Workload acts as the policy template.
+#   - A PodGroup is the runtime instance (here created manually).
+#   - Pods reference the PodGroup by name via spec.schedulingGroup.
+# Scheduling behavior is identical to vanilla Kubernetes — basic policy
+# just threads the group identity through to match up with future
+# consumers (e.g. metrics, DRA, preemption).
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: Workload
+metadata:
+  name: basic-demo
+  namespace: ws-demo
+spec:
+  podGroupTemplates:
+  - name: pods
+    schedulingPolicy:
+      basic: {}
+---
+apiVersion: scheduling.k8s.io/v1alpha2
+kind: PodGroup
+metadata:
+  name: basic-demo-pods
+  namespace: ws-demo
+spec:
+  podGroupTemplateRef:
+    workload:
+      workloadName: basic-demo
+      podGroupTemplateName: pods
+  schedulingPolicy:
+    basic: {}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: basic-pod-1
+  namespace: ws-demo
+  labels:
+    app: basic-demo
+spec:
+  schedulingGroup:
+    podGroupName: basic-demo-pods
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: basic-pod-2
+  namespace: ws-demo
+  labels:
+    app: basic-demo
+spec:
+  schedulingGroup:
+    podGroupName: basic-demo-pods
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
