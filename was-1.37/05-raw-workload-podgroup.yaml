@@ -1,0 +1,57 @@
+# The low-level primitives, hand-authored (what a controller compiles for you).
+#
+# A Workload holds NAMED PodGroupTemplates (policy only). A PodGroup is the
+# runtime object that carries the actual policy inline and links back to its
+# template. Pods join the group via .spec.schedulingGroup.podGroupName.
+#
+# Verified against scheduling.k8s.io v1alpha3/v1beta1 types and the Job
+# controller (job_scheduling_manager.go) on kubernetes master: the runtime
+# PodGroup links its Workload via spec.workloadRef {workloadName, templateName}.
+---
+apiVersion: scheduling.k8s.io/v1beta1
+kind: Workload
+metadata:
+  name: training-workload
+  namespace: was-demo
+spec:
+  # Points at the "true" controller object that owns this Workload.
+  controllerRef:
+    apiGroup: batch
+    kind: Job
+    name: training-job
+  podGroupTemplates:
+  - name: workers
+    schedulingPolicy:
+      gang:
+        minCount: 4
+---
+apiVersion: scheduling.k8s.io/v1beta1
+kind: PodGroup
+metadata:
+  name: training-workers-pg
+  namespace: was-demo
+spec:
+  # Links the runtime PodGroup back to the Workload + template it was built from.
+  workloadRef:
+    workloadName: training-workload
+    templateName: workers
+  # The runtime PodGroup carries the policy inline (self-contained).
+  schedulingPolicy:
+    gang:
+      minCount: 4
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: worker-0
+  namespace: was-demo
+spec:
+  schedulingGroup:
+    podGroupName: training-workers-pg
+  restartPolicy: Never
+  containers:
+  - name: worker
+    image: busybox:1.36
+    command: ["sh", "-c", "echo worker-0 up; sleep 30"]
+    resources:
+      requests: { cpu: "100m", memory: "32Mi" }

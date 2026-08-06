@@ -1,0 +1,26 @@
+# kind cluster for the Kubernetes v1.37 Workload-Aware Scheduling demo.
+#
+# Enables the WAS feature gates and the served API groups:
+#   - scheduling.k8s.io/v1beta1  -> Workload + PodGroup (graduated to Beta in 1.37)
+#   - scheduling.k8s.io/v1alpha3 -> building blocks + CompositePodGroup (Alpha)
+#
+# Three workers give the gang/topology demos room to place (and to block).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+# Gate names marked (unverified) below are carried from the v1.36 docs; the
+# others are confirmed against scheduling/v1alpha3 types.go on master. Verify the
+# full set against the v1.37 feature-gate reference before relying on them.
+featureGates:
+  GenericWorkload: true                    # prerequisite: Workload + PodGroup APIs
+  WorkloadWithJob: true                    # Job .spec.scheduling integration
+  TopologyAwareWorkloadScheduling: true    # schedulingConstraints (topology co-location)
+  WorkloadAwarePreemption: true            # disruptionMode: all (requires GangScheduling)
+  ElasticIndexedJob: true                  # scale gang.minCount / parallelism in place
+runtimeConfig:
+  "scheduling.k8s.io/v1beta1": "true"
+  "scheduling.k8s.io/v1alpha3": "true"
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+- role: worker

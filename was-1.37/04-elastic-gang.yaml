@@ -1,0 +1,32 @@
+# Elastic gang: gang.minCount is the ONE mutable .spec.scheduling field.
+#
+# Apply this, then scale the gang in place (no Job recreation) with:
+#   kubectl -n was-demo patch job elastic-gang --type merge \
+#     -p '{"spec":{"parallelism":6,"completions":6,"scheduling":{"schedulingPolicy":{"gang":{"minCount":6}}}}}'
+#
+# The controller recompiles the Workload and re-syncs the PodGroup size.
+# A gang.minCount greater than parallelism is rejected.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elastic-gang
+  namespace: was-demo
+spec:
+  parallelism: 3
+  completions: 3
+  completionMode: Indexed
+  scheduling:
+    schedulingPolicy:
+      gang:
+        minCount: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: worker
+        image: busybox:1.36
+        command: ["sh", "-c", "echo index $JOB_COMPLETION_INDEX up; sleep 120"]
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "32Mi"
