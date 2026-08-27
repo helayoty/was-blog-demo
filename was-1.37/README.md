@@ -14,17 +14,12 @@ The building-block / library surface is **alpha and off by default**.
 ## Prerequisites
 
 1. `kind` ≥ v0.32 (needs `featureGates` and `runtimeConfig` at cluster level).
-2. A v1.37 node image: `kindest/node:v1.37.0`.
+2. A v1.37 node image: `v1.37.0`.
 3. `kubectl` v1.37+ (older clients don't know the `scheduling.k8s.io/v1beta1` types).
 
-> **If `kindest/node:v1.37.0` is not yet published**, build it from source:
->
-> ```bash
-> git clone --depth 1 --branch release-1.37 https://github.com/kubernetes/kubernetes.git
-> kind build node-image ./kubernetes --image kindest/node:v1.37.0
-> # and a matching kubectl:
-> cd kubernetes && make kubectl && sudo cp _output/bin/kubectl /usr/local/bin/kubectl
-> ```
+```bash
+  kind build node-image v1.37.0
+```
 
 ## Layout
 
